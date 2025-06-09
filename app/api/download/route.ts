@@ -1,8 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { spawn } from "child_process"
-import { createReadStream, unlinkSync } from "fs"
 import { join } from "path"
 import { tmpdir } from "os"
+import ytDlp from 'yt-dlp-exec'
+import { createReadStream, statSync, unlinkSync } from "fs"
 
 export async function POST(request: NextRequest) {
   try {
