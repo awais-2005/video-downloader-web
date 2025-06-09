@@ -1,4 +1,7 @@
 import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -14,7 +17,7 @@ const nextConfig = {
   output: 'standalone', // Optimizes for production deployment
   poweredByHeader: false, // Removes X-Powered-By header for security
   webpack: (config) => {
-    config.resolve.alias['@'] = path.resolve(__dirname)
+    config.resolve.alias['@'] = __dirname
     return config
   },
 }
