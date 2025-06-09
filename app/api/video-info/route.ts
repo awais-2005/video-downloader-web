@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { spawn } from "child_process"
+// Use require for child_process to avoid Next.js import issues
+const { spawn } = require("child_process")
 
 interface VideoFormat {
   format_id: string
@@ -77,15 +78,15 @@ function getVideoInfo(url: string): Promise<YtDlpInfo | null> {
     let output = "";
     let errorOutput = "";
 
-    ytDlp.stdout.on("data", (data) => {
+    ytDlp.stdout.on("data", (data: Buffer) => {
       output += data.toString();
     });
 
-    ytDlp.stderr.on("data", (data) => {
+    ytDlp.stderr.on("data", (data: Buffer) => {
       errorOutput += data.toString();
     });
 
-    ytDlp.on("close", (code) => {
+    ytDlp.on("close", (code: number) => {
       if (code === 0 && output.trim()) {
         try {
           const info = JSON.parse(output.trim());
@@ -100,7 +101,7 @@ function getVideoInfo(url: string): Promise<YtDlpInfo | null> {
       }
     });
 
-    ytDlp.on("error", (error) => {
+    ytDlp.on("error", (error: Error) => {
       console.error("Spawn error:", error);
       reject(error);
     });
