@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "chmod +x scripts/vercel-install.sh && ./scripts/vercel-install.sh && next build",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint"
   },
@@ -39,19 +39,15 @@
     "@radix-ui/react-toggle-group": "1.1.1",
     "@radix-ui/react-tooltip": "1.1.6",
     "autoprefixer": "^10.4.20",
-    "child_process": "latest",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "1.0.4",
     "date-fns": "4.1.0",
     "embla-carousel-react": "8.5.1",
-    "fs": "latest",
     "input-otp": "1.4.1",
     "lucide-react": "^0.454.0",
     "next": "^15.2.4",
     "next-themes": "^0.4.4",
-    "os": "latest",
-    "path": "latest",
     "react": "^19.1.0",
     "react-day-picker": "8.10.1",
     "react-dom": "^19.1.0",
@@ -64,13 +60,5 @@
     "vaul": "^0.9.6",
     "yt-dlp-exec": "^1.1.2",
     "zod": "^3.24.1"
-  },
-  "devDependencies": {
-    "@types/node": "^22.15.30",
-    "@types/react": "^19.1.6",
-    "@types/react-dom": "^19",
-    "postcss": "^8.5",
-    "tailwindcss": "^3.4.17",
-    "typescript": "^5"
   }
 }
