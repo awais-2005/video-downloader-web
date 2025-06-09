@@ -3,6 +3,13 @@ import { join } from "path"
 import { tmpdir } from "os"
 import ytDlp from 'yt-dlp-exec'
 import { createReadStream, statSync, unlinkSync } from "fs"
+import { getFfmpeg } from '@ffmpeg-installer/ffmpeg'
+
+// Set FFmpeg path
+process.env.FFMPEG_PATH = getFfmpeg().path
+
+// Use environment variable for yt-dlp path if available
+const ytDlpPath = process.env.YTDLP_PATH || undefined
 
 export async function POST(request: NextRequest) {
   try {

@@ -1,15 +1,19 @@
 {
-    "version": 2,
-    "buildCommand": "npm run build",
-    "installCommand": "npm install",
-    "framework": "nextjs",
-    "regions": [
-        "iad1"
-    ],
-    "functions": {
-        "/api/**": {
-            "memory": 3008,
-            "maxDuration": 60
-        }
+  "version": 2,
+  "buildCommand": "npm run build",
+  "installCommand": "npm install",
+  "framework": "nextjs",
+  "regions": ["iad1"],
+  "functions": {
+    "/api/**": {
+      "memory": 3008,
+      "maxDuration": 60
     }
+  },
+  "build": {
+    "env": {
+      "FFMPEG_PATH": "/var/task/node_modules/@ffmpeg-installer/ffmpeg/ffmpeg",
+      "YTDLP_PATH": "/var/task/node_modules/yt-dlp-exec/bin/yt-dlp"
+    }
+  }
 }
