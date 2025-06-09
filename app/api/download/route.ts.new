@@ -1,0 +1,179 @@
+import { type NextRequest, NextResponse } from "next/server"
+import { join } from "path"
+import { tmpdir } from "os"
+import { spawn } from "child_process"
+import { createReadStream, statSync, unlinkSync } from "fs"
+
+// Binary paths from environment variables
+const FFMPEG_PATH = process.env.FFMPEG_PATH || '/usr/bin/ffmpeg'
+const YTDLP_PATH = process.env.YTDLP_PATH || 'yt-dlp'
+
+interface DownloadResult {
+  success: boolean
+  filePath?: string
+  filename?: string
+  extension?: string
+  error?: string
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const { url, format } = await request.json()
+
+    if (!url || !format) {
+      return NextResponse.json({ error: "URL and format are required" }, { status: 400 })
+    }
+
+    try {
+      new URL(url)
+    } catch {
+      return NextResponse.json({ error: "Invalid URL format" }, { status: 400 })
+    }
+
+    const downloadResult = await downloadVideo(url, format)
+
+    if (!downloadResult.success || !downloadResult.filePath) {
+      return NextResponse.json({ error: downloadResult.error || "Download failed" }, { status: 500 })
+    }
+
+    const fileStats = statSync(downloadResult.filePath)
+    const totalSize = fileStats.size
+    const fileStream = createReadStream(downloadResult.filePath)
+
+    const stream = new ReadableStream({
+      start(controller: ReadableStreamDefaultController<Uint8Array>) {
+        fileStream.on("data", (chunk: string | Buffer) => {
+          controller.enqueue(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+        })
+        fileStream.on("end", () => {
+          controller.close()
+          try { unlinkSync(downloadResult.filePath!) } catch { }
+        })
+        fileStream.on("error", (error: Error) => {
+          controller.error(error)
+          try { unlinkSync(downloadResult.filePath!) } catch { }
+        })
+      },
+    })
+
+    const filename = downloadResult.filename || `video_${Date.now()}`
+    const extension = downloadResult.extension || "mp4"
+    const response = new NextResponse(stream)
+    response.headers.set("Content-Type", getContentType(extension))
+    response.headers.set("Content-Disposition", `attachment; filename="${filename}.${extension}"`)
+    response.headers.set("Content-Length", totalSize.toString())
+    response.headers.set("Access-Control-Expose-Headers", "Content-Length, Content-Disposition")
+    return response
+  } catch (error) {
+    console.error("Download error:", error)
+    return NextResponse.json({ error: "Download failed" }, { status: 500 })
+  }
+}
+
+function downloadVideo(url: string, formatId: string): Promise<DownloadResult> {
+  return new Promise((resolve) => {
+    const tempDir = tmpdir()
+    const outputTemplate = join(tempDir, `download_${Date.now()}.%(ext)s`)
+
+    let ytDlpArgs: string[] = []
+
+    if (formatId === "audio-only" || formatId === "audio") {
+      ytDlpArgs = [
+        "-f", "bestaudio",
+        "-x", "--audio-format", "mp3", "--audio-quality", "0",
+        "--output", outputTemplate,
+        "--no-warnings",
+        url,
+      ]
+    } else if (url.includes("facebook.com")) {
+      ytDlpArgs = [
+        "-f", "bestvideo+bestaudio/best",
+        "--merge-output-format", "mp4",
+        "--output", outputTemplate,
+        "--no-warnings",
+        url,
+      ]
+    } else if (url.includes("instagram.com")) {
+      ytDlpArgs = [
+        "-f", "best",
+        "--output", outputTemplate,
+        "--no-warnings",
+        url,
+      ]
+    } else {
+      ytDlpArgs = [
+        "-f", formatId,
+        "--merge-output-format", "mp4",
+        "--output", outputTemplate,
+        "--no-warnings",
+        url,
+      ]
+    }
+
+    // Use FFMPEG path if available
+    if (FFMPEG_PATH) {
+      ytDlpArgs.push("--ffmpeg-location", FFMPEG_PATH)
+    }
+
+    const defaultCookiesPath = join(process.cwd(), "cookies.txt")
+    try {
+      if (statSync(defaultCookiesPath)) {
+        ytDlpArgs.push("--cookies", defaultCookiesPath)
+      }
+    } catch { }
+
+    const ytDlp = spawn(YTDLP_PATH, ytDlpArgs)
+    let errorOutput = ""
+
+    ytDlp.stderr.on("data", (data: Buffer) => {
+      errorOutput += data.toString()
+    })
+
+    ytDlp.on("close", (code: number) => {
+      if (code === 0) {
+        const exts = ["mp4", "mkv", "webm", "mp3", "m4a", "wav", "ogg"]
+        for (const ext of exts) {
+          const candidate = outputTemplate.replace("%(ext)s", ext)
+          try {
+            statSync(candidate)
+            const filename = candidate.split(/[/\\]/).pop() || "video"
+            const nameWithoutExt = filename.replace(`.${ext}`, "")
+            return resolve({
+              success: true,
+              filePath: candidate,
+              filename: nameWithoutExt.replace(/[^a-zA-Z0-9\-_\s]/g, "_"),
+              extension: ext,
+            })
+          } catch { }
+        }
+      }
+
+      resolve({
+        success: false,
+        error: `Download failed with code ${code}: ${errorOutput}`,
+      })
+    })
+
+    ytDlp.on("error", (error: Error) => {
+      resolve({
+        success: false,
+        error: `Failed to start download process: ${error.message}`,
+      })
+    })
+  })
+}
+
+function getContentType(extension: string): string {
+  const contentTypes: Record<string, string> = {
+    mp4: "video/mp4",
+    webm: "video/webm",
+    mkv: "video/x-matroska",
+    avi: "video/x-msvideo",
+    mov: "video/quicktime",
+    mp3: "audio/mpeg",
+    m4a: "audio/mp4",
+    ogg: "audio/ogg",
+    wav: "audio/wav",
+  }
+  return contentTypes[extension.toLowerCase()] || "application/octet-stream"
+}
